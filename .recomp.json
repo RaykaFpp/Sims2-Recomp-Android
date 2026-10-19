@@ -1,0 +1,30 @@
+{
+  "$schema": "https://recomp.fyi/schema/v1.json",
+  "game": "The Sims 2",
+  "system": "Xbox",
+  "type": "recomp",
+  "original": {
+    "region": "USA",
+    "serial": "0x4541038B",
+    "sha1": "16f9e41ce26c315a758f25d43ba1fa9d3809d1ad"
+  },
+  "project": "The Sims 2 Recompiled",
+  "status": "playable",
+  "targets": ["Windows"],
+  "toolchain": "XboxXBERecomp",
+  "approach": "Static recompilation of the retail XBE to C++; XDK HLE on a Direct3D 12 renderer and XAudio2",
+  "maintainers": [
+    { "name": "abilliontokens", "link": "https://github.com/abilliontokens" }
+  ],
+  "links": [
+    { "label": "SDK fork", "url": "https://github.com/abilliontokens/XboxXBERecomp" }
+  ],
+  "help": [
+    "Naming the XDK functions that remain unnamed in config/game.toml - see docs/analysis-xdk-gaps.md",
+    "Replacing the five DirectSound .XTLID exports still running guest code (B00A3, B00A5, B00A4, B0080, B00A9) - see docs/status.md",
+    "Play-testing beyond the first lot reached so far",
+    "Saving and reloading"
+  ],
+  "tags": ["xbox", "static-recomp", "xbe", "xdk-5849", "d3d12"],
+  "notes": "Builds and links from the retail USA XBE: 15,926 functions recompiled (843,348 instructions), config/game.toml located 132 of 240 XDK functions and 11 of 12 data symbols, and all 124 kernel imports are implemented by the SDK runtime. It now boots through its startup movies to the title screen and main menu and into live gameplay on a lot (docs/status.md; screenshot out/gameplay1.png): a verbose 100 s bounded run through movies, title and menu navigation logged 0 exceptions and 0 allocation failures, and a 75 s release run stayed healthy. Fixed during bring-up: the D3DDevice_Reset crash (host replacement plus [symbols] entry), the push-buffer callback deadlock (D3DDevice_InsertCallback = 0x275750 plus a host replacement that runs the callback immediately), and a physical-memory leak in Reset that let a read-back scribble over guest kernel memory; D3DDevice_SetPalette and D3DDevice_SetVertexShaderConstant1Fast were also added. Host-side pieces in place: F1 settings panel (display mode, resolution, render scale, aspect ratio, ultrawide, vsync, frame cap, HDR, anisotropic filtering) and F2 frame-time graph, keyboard+mouse as an Xbox pad, the frame-step replacement so the engine's 1/60-quantised step keeps real speed at any frame rate, and presenting only rows 16..463 of the 640x480 frame (the drawn picture is 640x448). Frame-rate and resolution measurements are not yet published; no numbers are quoted until measured."
+}
