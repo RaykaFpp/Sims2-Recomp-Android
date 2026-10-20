@@ -7,20 +7,23 @@ produced by statically recompiling the game's x86 XBE with the
 This repository contains **no game code and no game assets**. It holds tooling, configuration and
 host-side glue only. You must supply your own legally acquired copy of the disc.
 
-> **Status: boots to live gameplay.** The port plays its startup movies, reaches the title
-> screen and main menu, and enters live gameplay on a lot (`docs/status.md`, update of
-> 2026-10-18; screenshot `out/gameplay1.png`). A verbose 100 s bounded run through movies,
-> title and menu navigation logged 0 exceptions and 0 allocation failures, and a 75 s release
-> run stayed healthy with no `exception` in its log. Frame-rate and resolution measurements
-> are not yet published — see below.
+> **Status: boots to live gameplay, on Windows and Linux.** The port plays its startup movies,
+> reaches the title screen and main menu, and enters live gameplay on a lot (`docs/status.md`,
+> update of 2026-10-18; screenshot `out/gameplay1.png`). A verbose 100 s bounded run through
+> movies, title and menu navigation logged 0 exceptions and 0 allocation failures, and a 75 s
+> release run stayed healthy with no `exception` in its log. The native Linux build (Vulkan)
+> reaches the title screen and a 3-D neighbourhood scene with the same clean logs
+> (`docs/status.md`, update of 2026-10-19). Frame-rate and resolution measurements are not yet
+> published — see below.
 
 ## Run it
 
 Windows x64 (Direct3D 12) and Linux x64 (Vulkan) are both built from this tree. When it runs,
 you supply the game: the USA Xbox release, as a disc image or as the files from one.
 
-1. Build it (see **Build it from source**), or take a release build: `Sims2.exe` from
-   `out/build/release`, `Sims2` from `out/build/linux-release`.
+1. Download a build from [Releases](https://github.com/abilliontokens/sims2-recomp/releases)
+   (`Sims2-win64.zip`, `Sims2-linux-x64.tar.zst`) or build it yourself (see **Build it from
+   source**): `Sims2.exe` lands in `out/build/release`, `Sims2` in `out/build/linux-release`.
 2. Put your disc image in the `assets` folder beside the binary, so you have `Sims2.exe` and
    `assets\<anything>.iso` (or `Sims2` and `assets/<anything>.iso`). A whole-disc dump or a plain
    xiso both work, and so do extracted files (`default.xbe` with its `DATA` and `movies` folders
@@ -28,9 +31,11 @@ you supply the game: the USA Xbox release, as a disc image or as the files from 
 3. Run it. It mounts the image as the console's `D:` and boots the game.
 
 Windows needs Windows 10/11 x64 and a Direct3D 12 GPU, plus the Microsoft Visual C++
-Redistributable (2015-2022, x64). Linux needs a Vulkan 1.3 driver and loader; the renderer
-translates the title's shaders to SPIR-V with glslang at run time, so the packaged build carries
-`libglslang`/`libSPIRV-Tools` in `lib/` beside the binary.
+Redistributable (2015-2022, x64). Linux needs a Vulkan driver and loader from the system; the
+renderer translates the title's shaders to SPIR-V with glslang at run time, so the packaged
+build carries `libglslang`/`libSPIRV-Tools` in `lib/` beside the binary and finds them through
+an `$ORIGIN` rpath. The Linux package is built on a rolling distribution: it needs glibc 2.43
+or newer and `libstdc++` with `GLIBCXX_3.4.31`.
 
 Display features that come from the SDK and need no port work: display mode, output resolution,
 render scale, aspect ratio, ultrawide, vsync, frame cap, HDR and anisotropic filtering. The port
@@ -88,10 +93,12 @@ and the mouse and the game sees neither.
 | Toolchain (LLVM clang + VS 2022 Build Tools + Ninja + CMake, Python 3.12) | done — see `docs/toolchain.md` |
 | `config/game.toml` written by `xbe_symbols` | done — 132 of 240 XDK functions and 11 of 12 data symbols located, `partitions = 64` |
 | Kernel import coverage (`tools/kernel_coverage.py`) | done — 124 of 124 implemented by the SDK runtime, 0 trapping, see `docs/kernel-coverage.md` |
-| Recompilation and native build | done — 15,926 functions, 843,348 instructions, builds to `out/build/release/Sims2.exe` with clang/lld |
+| Recompilation and native build | done — 15,926 functions, 843,348 instructions, builds to `out/build/release/Sims2.exe` (Windows, D3D12) and `out/build/linux-release/Sims2` (Linux, Vulkan) with clang/lld |
 | Remaining XDK surface gaps | 68 real gaps (16 D3D, 44 DirectSound, 7 CRT math, 1 `XNetGetEthernetLinkStatus`), see `docs/analysis-xdk-gaps.md` |
 | Boot and rendering | done — startup movies decode and render, title screen and main menu render, see `docs/status.md` |
 | Gameplay | reached — scripted pad (Story Mode → Start New → Yes → One Player → Start) loads into a live lot; screenshot `out/gameplay1.png`, see `docs/status.md` |
+| Linux target (Vulkan, SDL3) | done — `./build.sh`, `./release.sh`; see `docs/status.md`, update of 2026-10-19 |
+| Windows exe cross-built from Linux | done — `windows-cross` preset (clang-cl + lld-link + xwin); smoke-run under Wine only, never on real Windows |
 
 Fixed during bring-up (evidence in `docs/status.md`): the `D3DDevice_Reset` crash (host
 replacement plus a `[symbols]` entry), the push-buffer callback deadlock

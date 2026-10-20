@@ -276,3 +276,61 @@ named API, with this caveat recorded.
   no `exception` in `out/build/release/logs/sims2.log`. Both builds compile
   clean after the probe removal. Runs were launched individually, bounded,
   and killed by PID; no window was left up.
+
+## Update 2026-10-19: native Linux target (Vulkan)
+
+Recorded on this Linux machine: CachyOS, kernel 7.2.11, clang 23.1.3, AMD
+BC-250 (RADV GFX1013, Vulkan 1.4.363), 3440x1440 display. Every run below was
+bounded with `timeout` and killed; no window was left up.
+
+The SDK submodule was fast-forwarded from `30124a8` to `adc40ab` on
+`sims2-port-fixes` (15 commits ahead, 0 behind, so no sims2 work is lost):
+that range is what brings `runtime/gpu/vulkan.cpp` and `spirv.cpp`, the SDL3
+host and audio, the POSIX kernel/file/iocp layer, and the cross-build support.
+
+Port-side work was three files, all of it the Windows-only assumptions in the
+host glue:
+
+- `src/common/input_kbm.cpp/.h` — the Win32 `windows.h` collection path became
+  one of two. Bindings are byte-for-byte the same; they now fill a logical
+  `Key` enum that either `kbm::Message` (Win32) or `SDL_GetKeyboardState` plus
+  the `NoteMouse`/`NoteWheel` cache (SDL) populates, and one `Apply()` merges
+  the snapshot into the pad. `SDL_GetMouseState` is main-thread-only, so the
+  window thread publishes the sample through atomics instead of guest polling
+  threads calling it.
+- `src/common/game_info.cpp` — `.message` is the Win32 hook only; the SDL host
+  calls no message hook. Building for Linux failed on exactly this
+  (`no member named 'NoteMouse' in namespace 'kbm'`, `'windows.h' file not
+  found`).
+- `src/common/overlay.cpp` — Hor+ widening is a backend property: D3D12 widens
+  the frame target by `app::AspectWiden()`, Vulkan to `app::HostAspect()` at
+  the same height. `BackendWiden()` makes the F1 panel report the target the
+  active backend builds instead of the D3D12 one on both. The wheel reaches
+  the pad through `kbm::NoteWheel` where there are no window messages.
+
+Results:
+
+| Run | Result |
+| --- | --- |
+| `out/build/linux-release/Sims2`, 75 s | Vulkan adapter selected, 0 `error`/`exception` lines, clean `Exit (0)` |
+| Same binary, 70 s, scripted pad (`SIMS2_AUTOSTART=1`) | title screen with the Story Mode menu up (`out/shots/drive_a.png`), then a 3-D neighbourhood scene (`out/shots/drive_c.png`) |
+| Packaged build (`release.sh`), extracted to `/tmp` and run there, 60 s | renders the startup movie; every bundled library resolves inside the package (`DT_RPATH $ORIGIN/lib`), 0 errors |
+
+The host reports `Desktop: 1280x720` on this KDE/Wayland session while the
+window is in fact the full 3440x1440; the sibling Bustin' Out port logs the
+same line on this machine, so it is an SDK display-query quirk, not something
+this port introduced. Not chased here.
+
+### Windows exe cross-built from Linux
+
+`cmake/windows-cross.cmake` plus the `host-tools` and `windows-cross` presets
+build `Sims2.exe` with clang-cl and lld-link against an xwin sysroot; the
+recompiler runs natively and both targets share one `generated/` tree. The
+result imports `MSVCP140.dll`, `VCRUNTIME140.dll` and `VCRUNTIME140_1.dll`
+(VC++ redistributable) and otherwise only what ships with Windows 10+.
+
+It has **never been run on real Windows.** Under Wine 11.20 with vkd3d it
+loads the XBE, creates the D3D12 device and swap chain and renders the startup
+movie (`out/shots/wine_a.png`), with 0 shader-compilation failures and 0
+errors in a 60 s bounded run. That is the whole of the evidence for that
+binary.
