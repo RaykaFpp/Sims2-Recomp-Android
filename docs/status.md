@@ -315,6 +315,11 @@ Results:
 | `out/build/linux-release/Sims2`, 75 s | Vulkan adapter selected, 0 `error`/`exception` lines, clean `Exit (0)` |
 | Same binary, 70 s, scripted pad (`SIMS2_AUTOSTART=1`) | title screen with the Story Mode menu up (`out/shots/drive_a.png`), then a 3-D neighbourhood scene (`out/shots/drive_c.png`) |
 | Packaged build (`release.sh`), extracted to `/tmp` and run there, 60 s | renders the startup movie; every bundled library resolves inside the package (`DT_RPATH $ORIGIN/lib`), 0 errors |
+| The published `Sims2-linux-x64.tar.zst`, re-downloaded from the v0.2.0 release and run from a scratch extraction, 80 s | startup movies, then the save-game selection screen over the 3-D neighbourhood — past title and main menu; 0 errors |
+
+In that last run the save-select dialog's prompt text draws semi-transparent over the
+neighbourhood behind it. Whether the D3D12 build does the same has not been checked, so it is
+not established as a Vulkan-only difference; recorded here rather than claimed either way.
 
 The host reports `Desktop: 1280x720` on this KDE/Wayland session while the
 window is in fact the full 3440x1440; the sibling Bustin' Out port logs the
