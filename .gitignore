@@ -28,6 +28,12 @@ settings.toml
 /hdd/
 /CrashDumps/
 
+# Release artifacts: built by release.sh / release.bat, attached to a GitHub
+# release, never committed.
+/Sims2-linux-x64.tar.zst
+/Sims2-win64.zip
+/Sims2.zip
+
 # editors
 .vs/
 .vscode/

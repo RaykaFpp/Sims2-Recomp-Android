@@ -30,7 +30,11 @@ const app::GameInfo app::kGame = {
     .init = nullptr,                      // after the settings load, before the window and boot
     .loaded = nullptr,                    // image in memory, before its entry point runs
     .window = nullptr,                    // the game window is up
+#if defined(_WIN32)
     .message = &kbm::Message,             // keyboard and mouse tracking; never takes a message
+#else
+    .message = nullptr,                   // the SDL host calls no message hook; kbm polls SDL
+#endif
     .ui = &overlay::Draw,                 // ImGui drawing each frame: F1 settings, F2 performance
     .pad = &PadHook,                      // scripted pad, then keyboard and mouse as port 0
     .rumble = nullptr,                    // changes a rumble before it is set

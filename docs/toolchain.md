@@ -1,6 +1,11 @@
 # Toolchain
 
+The port builds on two hosts: Windows x64 (Direct3D 12) and Linux x64 (Vulkan). The Windows exe
+can also be cross-built from Linux.
+
 ## Components
+
+### Windows
 
 | Component | Version / notes | Path |
 | --- | --- | --- |
@@ -16,8 +21,33 @@ Exact installed versions are printed by `tools\env.bat` every time it runs
 (`clang++ --version`, `ninja --version`, `cmake --version`); check there rather
 than trusting this page.
 
+### Linux
+
+| Component | Notes |
+| --- | --- |
+| clang / clang++ | the `linux-*` presets name them directly |
+| cmake, ninja | on PATH |
+| Vulkan loader and headers | `vulkan-icd-loader`, `vulkan-headers`; a Vulkan driver at run time |
+| glslang, SPIRV-Tools | the renderer compiles the title's shaders to SPIR-V at run time |
+| SDL3 | built from source by the SDK's FetchContent, statically linked |
+| python | 3.12, for `tools/xiso_extract.py` and `tools/xbe_info.py` |
+
+`./build.sh` checks for clang, clang++, cmake and ninja before configuring and names what is
+missing.
+
+### Cross-building the Windows exe from Linux
+
+| Component | Notes |
+| --- | --- |
+| clang-cl, lld-link, llvm-lib, llvm-rc, llvm-mt | from the system LLVM |
+| [xwin](https://github.com/Jake-Shadle/xwin) splat | Microsoft CRT and Windows SDK, laid out in `/winsysroot` style |
+| wine (optional) | to smoke-run the resulting exe without a Windows machine |
+
+`cmake/windows-cross.cmake` carries the one-time xwin setup at the top and defaults `XWIN_DIR`
+to `~/.cache/xwin/sysroot`.
+
 The SDK is a git submodule at `sdk/`, from the fork
-`https://github.com/abilliontokens/XboxXBERecomp.git`, branch `urbz-port-fixes`:
+`https://github.com/abilliontokens/XboxXBERecomp.git`, branch `sims2-port-fixes`:
 
 ```
 git submodule update --init sdk
@@ -43,18 +73,28 @@ build.bat
 
 ## CMake presets
 
-`CMakePresets.json` defines three presets, all Ninja, all clang/clang++ with `-march=x86-64-v2`, each writing to `out/build/<preset>`:
+`CMakePresets.json` defines the Windows presets, the Linux presets and the cross build, all
+Ninja, all clang-family with `-march=x86-64-v2`, each writing to `out/build/<preset>`:
 
-| Preset | `CMAKE_BUILD_TYPE` | Output |
-| --- | --- | --- |
-| `debug` | `Debug` | `out/build/debug` |
-| `release` | `Release` | `out/build/release` |
-| `relwithdebinfo` | `RelWithDebInfo` | `out/build/relwithdebinfo` |
+| Preset | Host | `CMAKE_BUILD_TYPE` | Output |
+| --- | --- | --- | --- |
+| `debug` | Windows | `Debug` | `out/build/debug/Sims2.exe` |
+| `release` | Windows | `Release` | `out/build/release/Sims2.exe` |
+| `relwithdebinfo` | Windows | `RelWithDebInfo` | `out/build/relwithdebinfo/Sims2.exe` |
+| `linux-debug` | Linux | `Debug` | `out/build/linux-debug/Sims2` |
+| `linux-release` | Linux | `Release` | `out/build/linux-release/Sims2` |
+| `linux-relwithdebinfo` | Linux | `RelWithDebInfo` | `out/build/linux-relwithdebinfo/Sims2` |
+| `host-tools` | Linux | `Release` | `xbe_recomp` and `xbe_symbols` alone (`XBE_HOST_TOOLS_ONLY`) |
+| `windows-cross` | Linux | `Release` | `out/build/windows-cross/Sims2.exe` |
 
 ```
-cmake --preset release
+cmake --preset release          # or linux-release
 cmake --build out/build/release
 ```
+
+The recompiler runs on the build host, so `windows-cross` consumes the natively built
+`xbe_recomp` through `XBE_HOST_TOOLS_DIR`; build `host-tools` first. The generated code is
+platform-neutral, so both targets share one `generated/` tree.
 
 ## Verbose RelWithDebInfo build (for debugging)
 

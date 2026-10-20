@@ -10,9 +10,9 @@
   },
   "project": "The Sims 2 Recompiled",
   "status": "playable",
-  "targets": ["Windows"],
+  "targets": ["Windows", "Linux"],
   "toolchain": "XboxXBERecomp",
-  "approach": "Static recompilation of the retail XBE to C++; XDK HLE on a Direct3D 12 renderer and XAudio2",
+  "approach": "Static recompilation of the retail XBE to C++; XDK HLE on a Direct3D 12 renderer (Windows) or Vulkan (Linux), XAudio2 or SDL3 audio",
   "maintainers": [
     { "name": "abilliontokens", "link": "https://github.com/abilliontokens" }
   ],
@@ -25,6 +25,6 @@
     "Play-testing beyond the first lot reached so far",
     "Saving and reloading"
   ],
-  "tags": ["xbox", "static-recomp", "xbe", "xdk-5849", "d3d12"],
+  "tags": ["xbox", "static-recomp", "xbe", "xdk-5849", "d3d12", "vulkan"],
   "notes": "Builds and links from the retail USA XBE: 15,926 functions recompiled (843,348 instructions), config/game.toml located 132 of 240 XDK functions and 11 of 12 data symbols, and all 124 kernel imports are implemented by the SDK runtime. It now boots through its startup movies to the title screen and main menu and into live gameplay on a lot (docs/status.md; screenshot out/gameplay1.png): a verbose 100 s bounded run through movies, title and menu navigation logged 0 exceptions and 0 allocation failures, and a 75 s release run stayed healthy. Fixed during bring-up: the D3DDevice_Reset crash (host replacement plus [symbols] entry), the push-buffer callback deadlock (D3DDevice_InsertCallback = 0x275750 plus a host replacement that runs the callback immediately), and a physical-memory leak in Reset that let a read-back scribble over guest kernel memory; D3DDevice_SetPalette and D3DDevice_SetVertexShaderConstant1Fast were also added. Host-side pieces in place: F1 settings panel (display mode, resolution, render scale, aspect ratio, ultrawide, vsync, frame cap, HDR, anisotropic filtering) and F2 frame-time graph, keyboard+mouse as an Xbox pad, the frame-step replacement so the engine's 1/60-quantised step keeps real speed at any frame rate, and presenting only rows 16..463 of the 640x480 frame (the drawn picture is 640x448). Frame-rate and resolution measurements are not yet published; no numbers are quoted until measured."
 }

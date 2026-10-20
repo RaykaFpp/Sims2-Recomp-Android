@@ -1,8 +1,10 @@
 // the in-game overlay: F2 a performance panel, F1 a settings panel, both off until asked for.
 // app::GameInfo::ui calls Draw on the render thread, inside the renderer's own ImGui frame and
-// under app::UiLock (gpu/d3d12.cpp RenderUi), so nothing here may block, allocate per frame or
-// trust that a context, a window size or a pad exists.
+// under app::UiLock, so nothing here may block, allocate per frame or trust that a context, a
+// window size or a pad exists.
 #include "common/overlay.h"
+
+#include "common/input_kbm.h"
 
 #include <algorithm>
 #include <atomic>
@@ -16,6 +18,9 @@
 #include <imgui.h>
 
 #include "app/app.h"
+#if !defined(_WIN32)
+#include "app/platform.h"  // app::HostAspect
+#endif
 
 namespace overlay {
 
@@ -187,7 +192,19 @@ const char* AspectName(float a) {
     return nullptr;
 }
 
-// the host frame target for a render scale, exactly as CreateTargetResource builds it
+// Hor+ widening is a backend property, not a settings property. The Windows D3D12 backend widens
+// its frame target by app::AspectWiden(); the Vulkan backend widens it to app::HostAspect() at
+// the same height (0 = unwidened). The panel reports the widening the active backend builds.
+float BackendWiden() {
+#if defined(_WIN32)
+    return app::AspectWiden();
+#else
+    float aspect = app::HostAspect();
+    return aspect > 0.0f ? aspect * (kGuestH / kGuestW) : 1.0f;
+#endif
+}
+
+// the host frame target for a render scale, exactly as the active backend builds it
 void FrameTarget(float scale, float widen, uint32_t& w, uint32_t& h) {
     long guest_w = std::lround(kGuestW * widen);
     w = uint32_t(std::max<long>(std::lround(guest_w * scale), 1));
@@ -236,11 +253,16 @@ void DrawPerf(double fps) {
     ImGui::PlotLines("##frametime", g_ring.ms, g_ring.count, g_ring.count == kSamples ? g_ring.next : 0, graph,
                      0.0f, hi * 1.25f + 1.0f, {ImGui::GetContentRegionAvail().x, 44.0f * g_ui_scale});
 
-    float widen = app::AspectWiden();
+    float widen = BackendWiden();
     float scale = app::RenderScale(uint32_t(kGuestH));
     uint32_t rw = 0, rh = 0;
     FrameTarget(scale, widen, rw, rh);
-    float aspect = app::Widescreen() ? 16.0f / 9.0f * widen : 4.0f / 3.0f;
+#if defined(_WIN32)
+    float aspect = app::Widescreen() ? 16.0f / 9.0f * app::AspectWiden() : 4.0f / 3.0f;
+#else
+    float host_aspect = app::HostAspect();
+    float aspect = host_aspect > 0.0f ? host_aspect : (app::Widescreen() ? 16.0f / 9.0f : 4.0f / 3.0f);
+#endif
 
     const float col = ImGui::CalcTextSize("render ").x;
     char value[48];
@@ -453,7 +475,7 @@ void DrawQuality() {
     app::Mode out = g_draft.width && g_draft.height ? app::Mode{g_draft.width, g_draft.height} : g_desktop;
     float scale = std::max(out.height * (g_draft.render_percent / 100.0f) / kGuestH, 0.1f);
     uint32_t rw = 0, rh = 0;
-    FrameTarget(scale, app::AspectWiden(), rw, rh);
+    FrameTarget(scale, BackendWiden(), rw, rh);
     char text[80];
     std::snprintf(text, sizeof text, "%u x %u frame target, from the guest's 640 x 480.", rw, rh);
     Note(text);
@@ -555,6 +577,14 @@ void Draw(double fps) {
     // captures a click nor touches the cursor, and io.WantCaptureMouse stays false
     if (g_settings_open) io.ConfigFlags &= ~(ImGuiConfigFlags_NoMouse | ImGuiConfigFlags_NoMouseCursorChange);
     else io.ConfigFlags |= ImGuiConfigFlags_NoMouse | ImGuiConfigFlags_NoMouseCursorChange;
+
+    // the wheel reaches the keyboard-and-mouse pad as a camera zoom pulse (input_kbm.cpp); while
+    // the settings panel is up it is the panel's, not the game's
+#if !defined(_WIN32)
+    // Linux only: on Windows the wheel reaches the pad as WM_MOUSEWHEEL in kbm::Message,
+    // and kbm::NoteWheel does not exist there
+    if (!g_settings_open && io.MouseWheel != 0.0f) kbm::NoteWheel(int(std::lround(io.MouseWheel)));
+#endif
 
     if (!g_perf_open && !g_settings_open) return;  // closed: the overlay draws nothing else
     if (g_perf_open) DrawPerf(fps);

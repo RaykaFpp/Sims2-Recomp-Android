@@ -2,7 +2,7 @@
 
 An unofficial native PC port of the original Xbox release of *The Sims 2* (USA),
 produced by statically recompiling the game's x86 XBE with the
-[XboxXBERecomp SDK](https://github.com/abilliontokens/XboxXBERecomp) (vendored in `sdk/`, branch `urbz-port-fixes`).
+[XboxXBERecomp SDK](https://github.com/abilliontokens/XboxXBERecomp) (vendored in `sdk/`, branch `sims2-port-fixes`).
 
 This repository contains **no game code and no game assets**. It holds tooling, configuration and
 host-side glue only. You must supply your own legally acquired copy of the disc.
@@ -14,18 +14,23 @@ host-side glue only. You must supply your own legally acquired copy of the disc.
 > run stayed healthy with no `exception` in its log. Frame-rate and resolution measurements
 > are not yet published — see below.
 
-## Run it on Windows
+## Run it
 
-There is no release download yet; build it from source (below). When it runs, you supply the
-game: the USA Xbox release, as a disc image or as the files from one.
+Windows x64 (Direct3D 12) and Linux x64 (Vulkan) are both built from this tree. When it runs,
+you supply the game: the USA Xbox release, as a disc image or as the files from one.
 
-1. Build `Sims2.exe` (see **Build it from source**); it lands in `out/build/release`.
-2. Put your disc image in the `assets` folder beside `Sims2.exe`, so you have
-   `Sims2.exe` and `assets\<anything>.iso`. A whole-disc dump or a plain xiso both work, and so do
-   extracted files (`default.xbe` with its `DATA` and `movies` folders beside it).
-3. Run `Sims2.exe`. It mounts the image as the console's `D:` and boots the game.
+1. Build it (see **Build it from source**), or take a release build: `Sims2.exe` from
+   `out/build/release`, `Sims2` from `out/build/linux-release`.
+2. Put your disc image in the `assets` folder beside the binary, so you have `Sims2.exe` and
+   `assets\<anything>.iso` (or `Sims2` and `assets/<anything>.iso`). A whole-disc dump or a plain
+   xiso both work, and so do extracted files (`default.xbe` with its `DATA` and `movies` folders
+   beside it).
+3. Run it. It mounts the image as the console's `D:` and boots the game.
 
-You need Windows 10/11 x64 and a Direct3D 12 GPU.
+Windows needs Windows 10/11 x64 and a Direct3D 12 GPU, plus the Microsoft Visual C++
+Redistributable (2015-2022, x64). Linux needs a Vulkan 1.3 driver and loader; the renderer
+translates the title's shaders to SPIR-V with glslang at run time, so the packaged build carries
+`libglslang`/`libSPIRV-Tools` in `lib/` beside the binary.
 
 Display features that come from the SDK and need no port work: display mode, output resolution,
 render scale, aspect ratio, ultrawide, vsync, frame cap, HDR and anisotropic filtering. The port
@@ -141,12 +146,13 @@ bytes, 524 jump tables, 10 callback entries.
 assets/        your disc image and/or the files extracted from it (never committed)
 config/        game.toml - the recompiler config written by xbe_symbols, then hand-corrected
 docs/          analysis and bring-up notes
-sdk/           XboxXBERecomp SDK submodule (recompiler, runtime, XDK HLE, D3D12 renderer)
+sdk/           XboxXBERecomp SDK submodule (recompiler, runtime, XDK HLE, D3D12 and Vulkan renderers)
 src/common/    host-side code: game_info.cpp defines app::kGame, input_kbm.cpp the keyboard pad,
                overlay.cpp the F1 settings panel and F2 frame-time graph
 src/game/      hooks and overrides for recompiled functions (src/game is excluded from the host glob)
 tools/         xiso_extract.py (XDVDFS reader), xbe_info.py (XBE reader), kernel_coverage.py,
                env.bat (toolchain PATH)
+cmake/         windows-cross.cmake - clang-cl/lld-link toolchain for cross-building the exe
 generated/     recompiler output (never committed)
 out/           build output, out/build/<preset> (never committed)
 ```
@@ -166,16 +172,36 @@ out/           build output, out/build/<preset> (never committed)
    python tools/xbe_info.py assets/default.xbe --json build/xbe_info.json --markdown docs/xbe-analysis.md
    ```
    The SHA-1 must match the table above.
-5. Install the toolchain and build:
+5. Install the toolchain and build.
+
+   Windows:
    ```
    tools\env.bat
    build.bat
    ```
-   `build.bat` configures the `release` preset, builds `xbe_symbols`, writes `config/game.toml`
-   from the XBE and the SDK's XDK 5849 signatures, then recompiles the XBE and builds `Sims2.exe`
-   into `out/build/release`. The first build is long: it compiles one C++ function per guest
-   function. Presets, and a separate verbose RelWithDebInfo build directory for debugging, are
-   described in `docs/toolchain.md`.
+   Linux:
+   ```
+   ./build.sh                 # linux-release preset
+   ```
+   Either script configures its preset, builds `xbe_symbols`, writes `config/game.toml` from the
+   XBE and the SDK's XDK 5849 signatures, then recompiles the XBE and builds the game:
+   `out/build/release/Sims2.exe` on Windows, `out/build/linux-release/Sims2` on Linux. The first
+   build is long: it compiles one C++ function per guest function. Presets, and a separate
+   verbose RelWithDebInfo build directory for debugging, are described in `docs/toolchain.md`.
+
+   The Windows exe can also be cross-built from Linux with clang-cl and lld-link against an
+   [xwin](https://github.com/Jake-Shadle/xwin) MSVC/Windows SDK cache (`cmake/windows-cross.cmake`
+   documents the one-time xwin setup):
+   ```
+   cmake --preset host-tools    && cmake --build --preset host-tools
+   cmake --preset windows-cross && cmake --build --preset windows-cross
+   ```
+   The recompiler runs on the host, so `host-tools` builds it natively first; the generated code
+   is platform-neutral and shared by both targets.
+
+6. Package a release: `release.bat` on Windows, `./release.sh` on Linux. `release.sh` writes
+   `Sims2-linux-x64.tar.zst` (binary, `lib/` with glslang and SPIRV-Tools, README) and, when a
+   cross-built exe is present in `out/build/windows-cross`, `Sims2-win64.zip` beside it.
 
 ## Working on the port
 
