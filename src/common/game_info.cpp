@@ -22,7 +22,11 @@ const app::GameInfo app::kGame = {
     .log = "sims2",                       // log file prefix
     .settings = "settings.toml",          // settings file beside the exe
     .splash = L"splash",                  // optional splash.png or splash.bmp beside the exe
+#if defined(__ANDROID__)
+    .missing = L"Put your game files in /storage/emulated/0/Sims2: a disc image (.iso), or default.xbe with its DATA and movies folders beside it.",
+#else
     .missing = L"Put the game in the assets folder: its disc image (.iso), or default.xbe with its DATA and movies folders beside it.",
+#endif
     .images = {{"default.xbe", "Sims2"}}, // each recompiled xbe and its exe, for title launches
     .options = {},                        // game settings kept in the settings file
     .load = nullptr,                      // reads more from the settings file's toml::table

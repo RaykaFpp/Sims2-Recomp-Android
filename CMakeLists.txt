@@ -41,4 +41,8 @@ if(NOT GAME_PARTITIONS)
 endif()
 
 # target name = GAME_EXE in build.bat and release.bat, xbe = GAME_XBE
-add_xbe_image(Sims2 default.xbe game.toml ${GAME_PARTITIONS} game)
+if(ANDROID)
+    add_xbe_image(main default.xbe game.toml ${GAME_PARTITIONS} game)
+else()
+    add_xbe_image(Sims2 default.xbe game.toml ${GAME_PARTITIONS} game)
+endif()

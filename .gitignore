@@ -42,3 +42,10 @@ settings.toml
 # Local temporary folder
 .local
 __pycache__/
+
+# Android local build output and IDE state
+/android/.gradle/
+/android/.androidide/
+/android/build/
+/android/app/build/
+/android/app/.cxx/
